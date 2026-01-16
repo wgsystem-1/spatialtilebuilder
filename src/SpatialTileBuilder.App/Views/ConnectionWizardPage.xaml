@@ -1,0 +1,138 @@
+<Page
+    x:Class="SpatialTileBuilder.App.Views.ConnectionWizardPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="clr-namespace:SpatialTileBuilder.App.ViewModels"
+    xmlns:conv="clr-namespace:SpatialTileBuilder.App.Converters"
+    xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+    mc:Ignorable="d"
+    Background="{DynamicResource MaterialDesignPaper}">
+
+    <Grid>
+        <ScrollViewer Padding="24">
+            <StackPanel MaxWidth="600" HorizontalAlignment="Center" VerticalAlignment="Center">
+                
+                <StackPanel>
+                    <TextBlock Text="Database Connection" Style="{DynamicResource MaterialDesignHeadline5TextBlock}"/>
+                    <TextBlock Text="Enter your PostGIS database connection details." Foreground="{DynamicResource MaterialDesignBodyLight}"/>
+                </StackPanel>
+
+                <!-- Form Card -->
+                <Border Background="{DynamicResource MaterialDesignCardBackground}" CornerRadius="8" Padding="24" BorderThickness="1" BorderBrush="{DynamicResource MaterialDesignDivider}">
+                    <StackPanel>
+                        <!-- Saved Connections -->
+                        <TextBlock Text="저장된 연결 (Saved Connections)" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <ComboBox ItemsSource="{Binding ViewModel.SavedConnections}" 
+                                  SelectedItem="{Binding ViewModel.SelectedConnection, Mode=TwoWay}"
+                                  DisplayMemberPath="Name"
+                                  materialDesign:HintAssist.Hint="이전 연결 선택"
+                                  Margin="0,0,0,24"
+                                  Style="{DynamicResource MaterialDesignComboBox}"/>
+                                  
+                        <!-- Host & Port -->
+                        <TextBlock Text="서버 정보" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <Grid Margin="0,0,0,24">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="3*"/>
+                                <ColumnDefinition Width="1*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Host Address (호스트 주소)" FontSize="12" Margin="0,0,0,4" Opacity="0.7"/>
+                                <TextBox Text="{Binding ViewModel.Host, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         materialDesign:HintAssist.Hint="예: localhost 또는 127.0.0.1"
+                                         Style="{DynamicResource MaterialDesignTextBox}"
+                                         Margin="0,0,8,0"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Port (포트)" FontSize="12" Margin="0,0,0,4" Opacity="0.7"/>
+                                <TextBox Text="{Binding ViewModel.Port, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         materialDesign:HintAssist.Hint="기본: 5432"
+                                         Style="{DynamicResource MaterialDesignTextBox}"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <TextBlock Text="데이터베이스 정보" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <StackPanel Margin="0,0,0,24">
+                            <TextBlock Text="Database Name (데이터베이스명)" FontSize="12" Margin="0,0,0,4" Opacity="0.7"/>
+                            <TextBox Text="{Binding ViewModel.Database, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     materialDesign:HintAssist.Hint="예: gis_db, spatial_data"
+                                     Style="{DynamicResource MaterialDesignTextBox}"/>
+                        </StackPanel>
+
+                        <TextBlock Text="인증 정보" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <Grid Margin="0,0,0,24">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1*"/>
+                                <ColumnDefinition Width="1*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,8,0">
+                                <TextBlock Text="Username (사용자명)" FontSize="12" Margin="0,0,0,4" Opacity="0.7"/>
+                                <TextBox Text="{Binding ViewModel.Username, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         materialDesign:HintAssist.Hint="DB 계정"
+                                         Style="{DynamicResource MaterialDesignTextBox}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="SSL Mode (SSL 모드)" FontSize="12" Margin="0,0,0,4" Opacity="0.7"/>
+                                <ComboBox ItemsSource="{Binding ViewModel.SslModes}" SelectedItem="{Binding ViewModel.SslMode, Mode=TwoWay}" 
+                                          materialDesign:HintAssist.Hint="보안 연결"
+                                          Style="{DynamicResource MaterialDesignComboBox}"
+                                          HorizontalAlignment="Stretch"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <StackPanel Margin="0,0,0,24">
+                            <TextBlock Text="Password (비밀번호)" FontSize="12" Margin="0,0,0,4" Opacity="0.7"/>
+                            <PasswordBox PasswordChanged="PasswordBox_PasswordChanged"
+                                         materialDesign:HintAssist.Hint="DB 비밀번호"
+                                         Style="{DynamicResource MaterialDesignPasswordBox}"/>
+                        </StackPanel>
+                        
+                        <Separator Margin="0,8,0,16"/>
+                        
+                        <TextBlock Text="연결 설정 저장" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <StackPanel>
+                            <TextBlock Text="Connection Name (연결 별칭)" FontSize="12" Margin="0,0,0,4" Opacity="0.7"/>
+                            <TextBox Text="{Binding ViewModel.ConnectionName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     materialDesign:HintAssist.Hint="이 연결을 나타낼 이름 (예: 회사_DB, 개발서버)"
+                                     Style="{DynamicResource MaterialDesignTextBox}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Status Message -->
+                <Border CornerRadius="4" Padding="12" Background="{DynamicResource MaterialDesignCardBackground}">
+                    <Grid >
+                        <!-- Using x:Bind function for visibility to avoid converters -->
+                         <!-- Error Icon -->
+                        
+                                  
+                         <!-- Success Icon (Inverted logic simulated by binding to TestSuccess) -->
+                        
+                        
+                        <TextBlock Grid.Column="1" Text="{Binding ViewModel.StatusMessage, Mode=OneWay}" TextWrapping="Wrap" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                    </Grid>
+                </Border>
+
+                <!-- Actions -->
+                <Grid Margin="0,16,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="1" Content="Test Connection" Command="{Binding ViewModel.TestConnectionCommand}" Width="160" Margin="0,0,12,0"/>
+                    <Button Grid.Column="2" Content="Save &amp; Connect" Command="{Binding ViewModel.SaveCommand}" Width="160"/>
+                </Grid>
+
+            </StackPanel>
+        </ScrollViewer>
+        
+        <Grid Background="{DynamicResource MaterialDesignCardBackground}" 
+              Visibility="{Binding ViewModel.IsLoading, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}"> 
+            <ProgressBar IsIndeterminate="True" Width="64" Height="64" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Grid>
+    </Grid>
+
+</Page>

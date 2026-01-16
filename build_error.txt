@@ -1,0 +1,16 @@
+  복원할 프로젝트를 확인하는 중...
+  복원할 모든 프로젝트가 최신 상태입니다.
+  SpatialTileBuilder.Core -> G:\SpatialTileBuilder\src\SpatialTileBuilder.Core\bin\Debug\net10.0\SpatialTileBuilder.Core.dll
+G:\SpatialTileBuilder\src\SpatialTileBuilder.Infrastructure\Services\TileGenerationService.cs(47,33): error CS1503: 1 인수: 'System.Collections.Generic.List<SpatialTileBuilder.Core.DTOs.SpatialTable>'에서 'System.Collections.Generic.List<SpatialTileBuilder.Core.DTOs.LayerStyle>'(으)로 변환할 수 없습니다. [G:\SpatialTileBuilder\src\SpatialTileBuilder.Infrastructure\SpatialTileBuilder.Infrastructure.csproj]
+G:\SpatialTileBuilder\src\SpatialTileBuilder.Infrastructure\Services\PostGISConnectionService.cs(186,31): warning CS8602: null 가능 참조에 대한 역참조입니다. [G:\SpatialTileBuilder\src\SpatialTileBuilder.Infrastructure\SpatialTileBuilder.Infrastructure.csproj]
+G:\SpatialTileBuilder\src\SpatialTileBuilder.Infrastructure\Services\PostGISConnectionService.cs(189,25): warning CS8602: null 가능 참조에 대한 역참조입니다. [G:\SpatialTileBuilder\src\SpatialTileBuilder.Infrastructure\SpatialTileBuilder.Infrastructure.csproj]
+
+빌드하지 못했습니다.
+
+G:\SpatialTileBuilder\src\SpatialTileBuilder.Infrastructure\Services\PostGISConnectionService.cs(186,31): warning CS8602: null 가능 참조에 대한 역참조입니다. [G:\SpatialTileBuilder\src\SpatialTileBuilder.Infrastructure\SpatialTileBuilder.Infrastructure.csproj]
+G:\SpatialTileBuilder\src\SpatialTileBuilder.Infrastructure\Services\PostGISConnectionService.cs(189,25): warning CS8602: null 가능 참조에 대한 역참조입니다. [G:\SpatialTileBuilder\src\SpatialTileBuilder.Infrastructure\SpatialTileBuilder.Infrastructure.csproj]
+G:\SpatialTileBuilder\src\SpatialTileBuilder.Infrastructure\Services\TileGenerationService.cs(47,33): error CS1503: 1 인수: 'System.Collections.Generic.List<SpatialTileBuilder.Core.DTOs.SpatialTable>'에서 'System.Collections.Generic.List<SpatialTileBuilder.Core.DTOs.LayerStyle>'(으)로 변환할 수 없습니다. [G:\SpatialTileBuilder\src\SpatialTileBuilder.Infrastructure\SpatialTileBuilder.Infrastructure.csproj]
+    경고 2개
+    오류 1개
+
+경과 시간: 00:00:02.19

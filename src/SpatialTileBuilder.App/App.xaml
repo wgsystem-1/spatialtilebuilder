@@ -1,0 +1,32 @@
+<Application x:Class="SpatialTileBuilder.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:converters="clr-namespace:SpatialTileBuilder.App.Converters"
+             >
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <materialDesign:BundledTheme BaseTheme="Light" 
+                                            PrimaryColor="Blue" 
+                                            SecondaryColor="DeepOrange" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Converters -->
+            <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+            <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+            <converters:BoolNegationConverter x:Key="BoolNegationConverter"/>
+            <converters:EnumToBooleanConverter x:Key="EnumToBooleanConverter"/>
+            <converters:EnumToVisibilityConverter x:Key="EnumToVisibilityConverter"/>
+            <converters:ConverterParameterToVisibilityConverter x:Key="ConverterParameterToVisibilityConverter"/>
+            <converters:StringFormatConverter x:Key="StringFormatConverter"/>
+            <converters:StepToButtonTextConverter x:Key="StepToButtonTextConverter"/>
+
+            <!-- Custom Resources -->
+            <Color x:Key="ColorPrimary">#0078D4</Color>
+            <Color x:Key="ColorError">#FF0000</Color>
+            <SolidColorBrush x:Key="BrushPrimary" Color="{StaticResource ColorPrimary}"/>
+            <SolidColorBrush x:Key="BrushError" Color="{StaticResource ColorError}"/>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

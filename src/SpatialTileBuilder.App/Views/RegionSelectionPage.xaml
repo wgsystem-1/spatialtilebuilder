@@ -1,0 +1,99 @@
+<Page
+    x:Class="SpatialTileBuilder.App.Views.RegionSelectionPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="clr-namespace:SpatialTileBuilder.App.ViewModels"
+    xmlns:converters="clr-namespace:SpatialTileBuilder.App.Converters"
+    mc:Ignorable="d"
+    Background="{DynamicResource MaterialDesignPaper}">
+
+    <Page.Resources>
+        <converters:EnumToBooleanConverter x:Key="EnumToBooleanConverter"/>
+        <!-- Global Converter Used -->
+        <converters:EnumToVisibilityConverter x:Key="EnumToVisibilityConverter"/>
+    </Page.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="Set Region &amp; Zoom" FontSize="24" FontWeight="Bold" Margin="0,0,0,24"/>
+
+        <!-- Content -->
+        <ScrollViewer Grid.Row="1">
+            <StackPanel>
+                
+                <!-- Region Mode -->
+                <StackPanel Margin="0,0,0,16"><TextBlock Text="Region Selection Mode" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                    <RadioButton Content="Full Extent (Korea)" 
+                                 IsChecked="{Binding ViewModel.SelectedRegionType, Mode=TwoWay, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Full}"/>
+                    <RadioButton Content="Administrative Area (Sido)" 
+                                 IsChecked="{Binding ViewModel.SelectedRegionType, Mode=TwoWay, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Sido}"/>
+                    <RadioButton Content="Bounding Box" 
+                                 IsChecked="{Binding ViewModel.SelectedRegionType, Mode=TwoWay, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=BBox}"/>
+                    <RadioButton Content="Polygon File" 
+                                 IsChecked="{Binding ViewModel.SelectedRegionType, Mode=TwoWay, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Polygon}"/>
+                </StackPanel>
+
+                <!-- Inputs Area -->
+                <Border Background="{DynamicResource MaterialDesignCardBackground}" CornerRadius="8" Padding="16">
+                    <StackPanel>
+                        <!-- Sido Combo -->
+                        <ComboBox 
+                                  ItemsSource="{Binding ViewModel.SidoList}" 
+                                  SelectedItem="{Binding ViewModel.SelectedSido, Mode=TwoWay}"
+                                  HorizontalAlignment="Stretch"
+                                  Visibility="{Binding ViewModel.SelectedRegionType, Mode=OneWay, Converter={StaticResource EnumToVisibilityConverter}, ConverterParameter=Sido}"/>
+
+                        <!-- BBox Inputs -->
+                        <Grid Visibility="{Binding ViewModel.SelectedRegionType, Mode=OneWay, Converter={StaticResource EnumToVisibilityConverter}, ConverterParameter=BBox}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            
+                            <TextBox Text="{Binding ViewModel.MinX, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Grid.Row="0" Grid.Column="0"/>
+                            <TextBox Text="{Binding ViewModel.MinY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Grid.Row="0" Grid.Column="1"/>
+                            <TextBox Text="{Binding ViewModel.MaxX, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Grid.Row="1" Grid.Column="0"/>
+                            <TextBox Text="{Binding ViewModel.MaxY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Grid.Row="1" Grid.Column="1"/>
+                        </Grid>
+                        
+                        <!-- Polygon Input -->
+                        <Grid Visibility="{Binding ViewModel.SelectedRegionType, Mode=OneWay, Converter={StaticResource EnumToVisibilityConverter}, ConverterParameter=Polygon}">
+                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                             <TextBox Text="{Binding ViewModel.PolygonFilePath, Mode=TwoWay}" IsReadOnly="True"/>
+                             <Button Command="{Binding ViewModel.BrowsePolygonCommand}" Content="Browse" VerticalAlignment="Bottom" Grid.Column="1"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Zoom Levels -->
+                <StackPanel Orientation="Horizontal">
+                    <TextBox Text="{Binding ViewModel.MinZoom, Mode=TwoWay}"/>
+                    <TextBox Text="{Binding ViewModel.MaxZoom, Mode=TwoWay}"/>
+                </StackPanel>
+
+                <!-- Estimation -->
+                <Button Command="{Binding ViewModel.CalculateEstimationCommand}" Content="Estimate Tiles"/>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Total Estimated Tiles:" FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding ViewModel.EstimatedTileCount, Mode=OneWay}" Foreground="{StaticResource BrushPrimary}"/>
+                </StackPanel>
+                <TextBlock Text="{Binding ViewModel.EstimationMessage, Mode=OneWay}" Foreground="Gray"/>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>

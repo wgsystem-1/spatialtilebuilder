@@ -1,0 +1,17 @@
+  蹂듭썝???꾨줈?앺듃瑜??뺤씤?섎뒗 以?..
+G:\SpatialTileBuilder\src\SpatialTileBuilder.App\SpatialTileBuilder.App.csproj : warning NU1510: PackageReference System.Security.Cryptography.ProtectedData?(?? ?섎━吏 ?딆뒿?덈떎. ???⑦궎吏??遺덊븘?뷀븷 ???덉쑝誘濡?醫낆냽?깆뿉???쒓굅?섎뒗 寃껋씠 醫뗭뒿?덈떎. [G:\SpatialTileBuilder\SpatialTileBuilder.sln]
+  蹂듭썝??紐⑤뱺 ?꾨줈?앺듃媛 理쒖떊 ?곹깭?낅땲??
+G:\SpatialTileBuilder\src\SpatialTileBuilder.App\SpatialTileBuilder.App.csproj : warning NU1510: PackageReference System.Security.Cryptography.ProtectedData?(?? ?섎━吏 ?딆뒿?덈떎. ???⑦궎吏??遺덊븘?뷀븷 ???덉쑝誘濡?醫낆냽?깆뿉???쒓굅?섎뒗 寃껋씠 醫뗭뒿?덈떎.
+  SpatialTileBuilder.Core -> G:\SpatialTileBuilder\src\SpatialTileBuilder.Core\bin\Release\net10.0\SpatialTileBuilder.Core.dll
+  SpatialTileBuilder.Infrastructure -> G:\SpatialTileBuilder\src\SpatialTileBuilder.Infrastructure\bin\Release\net10.0\SpatialTileBuilder.Infrastructure.dll
+  SpatialTileBuilder.Tests -> G:\SpatialTileBuilder\tests\SpatialTileBuilder.Tests\bin\Release\net10.0\SpatialTileBuilder.Tests.dll
+  SpatialTileBuilder.App -> G:\SpatialTileBuilder\src\SpatialTileBuilder.App\bin\Release\net10.0-windows\win-x64\SpatialTileBuilder.App.dll
+
+鍮뚮뱶?덉뒿?덈떎.
+
+G:\SpatialTileBuilder\src\SpatialTileBuilder.App\SpatialTileBuilder.App.csproj : warning NU1510: PackageReference System.Security.Cryptography.ProtectedData?(?? ?섎━吏 ?딆뒿?덈떎. ???⑦궎吏??遺덊븘?뷀븷 ???덉쑝誘濡?醫낆냽?깆뿉???쒓굅?섎뒗 寃껋씠 醫뗭뒿?덈떎. [G:\SpatialTileBuilder\SpatialTileBuilder.sln]
+G:\SpatialTileBuilder\src\SpatialTileBuilder.App\SpatialTileBuilder.App.csproj : warning NU1510: PackageReference System.Security.Cryptography.ProtectedData?(?? ?섎━吏 ?딆뒿?덈떎. ???⑦궎吏??遺덊븘?뷀븷 ???덉쑝誘濡?醫낆냽?깆뿉???쒓굅?섎뒗 寃껋씠 醫뗭뒿?덈떎.
+    寃쎄퀬 2媛?
+    ?ㅻ쪟 0媛?
+
+寃쎄낵 ?쒓컙: 00:00:01.09

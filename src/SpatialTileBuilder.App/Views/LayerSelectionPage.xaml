@@ -1,0 +1,74 @@
+<Page
+    x:Class="SpatialTileBuilder.App.Views.LayerSelectionPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="clr-namespace:SpatialTileBuilder.App.ViewModels"
+    xmlns:converters="clr-namespace:SpatialTileBuilder.App.Converters"
+    xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+    x:Name="RootPage"
+    mc:Ignorable="d"
+    Background="{DynamicResource MaterialDesignPaper}">
+
+    <Page.Resources>
+        <!-- Global Converter Used -->
+    </Page.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="Select Layers" FontSize="24" FontWeight="Bold" Margin="0,0,0,16"/>
+
+        <!-- Toolbar -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,12">
+            <Button Command="{Binding ViewModel.LoadTablesCommand}">
+                <Button.Content>
+                    <StackPanel Orientation="Horizontal"><TextBlock Text="Reload"/>
+                    </StackPanel>
+                </Button.Content>
+            </Button>
+            <TextBlock Text="{Binding ViewModel.StatusMessage, Mode=OneWay}" VerticalAlignment="Center" Foreground="Gray"/>
+        </StackPanel>
+
+        <!-- Table List (DataGrid) -->
+        <DataGrid Grid.Row="2" 
+                  ItemsSource="{Binding ViewModel.Tables}" 
+                  AutoGenerateColumns="False" 
+                  CanUserAddRows="False"
+                  HeadersVisibility="All"
+                  SelectionMode="Single"
+                  SelectionUnit="FullRow"
+                  materialDesign:DataGridAssist.CellPadding="13 8 8 8"
+                  materialDesign:DataGridAssist.ColumnHeaderPadding="8">
+            <DataGrid.Columns>
+                <DataGridCheckBoxColumn Binding="{Binding IsSelected, Mode=TwoWay}" 
+                                        ElementStyle="{StaticResource MaterialDesignDataGridCheckBoxColumnStyle}"
+                                        EditingElementStyle="{StaticResource MaterialDesignDataGridCheckBoxColumnEditingStyle}">
+                    <DataGridCheckBoxColumn.HeaderTemplate>
+                        <DataTemplate>
+                           <TextBlock Text=""/> <!-- Select All Checkbox logic could go here later -->
+                        </DataTemplate>
+                    </DataGridCheckBoxColumn.HeaderTemplate>
+                </DataGridCheckBoxColumn>
+                <DataGridTextColumn Header="Schema" Binding="{Binding Table.Schema}" IsReadOnly="True" Width="2*"/>
+                <DataGridTextColumn Header="Table" Binding="{Binding Table.Table}" IsReadOnly="True" Width="2*"/>
+                <DataGridTextColumn Header="Geometry Column" Binding="{Binding Table.GeometryColumn}" IsReadOnly="True" Width="2*"/>
+                <DataGridTextColumn Header="Type" Binding="{Binding Table.GeometryType}" IsReadOnly="True" Width="1*"/>
+                <DataGridTextColumn Header="SRID" Binding="{Binding Table.Srid}" IsReadOnly="True" Width="Auto"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- Footer -->
+        <Grid Grid.Row="3" Margin="0,16,0,0">
+            <Button Content="Next" Command="{Binding ViewModel.NavigateNextCommand}" HorizontalAlignment="Right" Width="100"/>
+        </Grid>
+        
+        <ProgressBar IsIndeterminate="True" Grid.RowSpan="4" Visibility="{Binding ViewModel.IsLoading, Converter={StaticResource BooleanToVisibilityConverter}, Mode=OneWay}" HorizontalAlignment="Center" VerticalAlignment="Center" Width="60" Height="60"/>
+    </Grid>
+</Page>
