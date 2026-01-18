@@ -183,13 +183,14 @@ public sealed class PostGISConnectionService : IPostGISConnectionService, IDispo
         var sql = $"SELECT ST_XMin(ext) as MinX, ST_YMin(ext) as MinY, ST_XMax(ext) as MaxX, ST_YMax(ext) as MaxY FROM (SELECT ST_Extent(ST_Transform({geomExpr}, 4326)) as ext FROM {Quote(schema)}.{Quote(table)}) as t";
         
         var result = await conn.QueryFirstOrDefaultAsync(sql);
-        if (result != null && result.MinX != null)
+        var row = (IDictionary<string, object>?)result;
+        if (row != null && row.ContainsKey("minx") && row["minx"] != null)
         {
             return new BoundingBox(
-                (double)result.MinX,
-                (double)result.MinY,
-                (double)result.MaxX,
-                (double)result.MaxY
+                (double)row["minx"],
+                (double)row["miny"],
+                (double)row["maxx"],
+                (double)row["maxy"]
             );
         }
         
@@ -206,12 +207,12 @@ public sealed class PostGISConnectionService : IPostGISConnectionService, IDispo
          return ParseGeometryType(typeStr);
     }
 
-    public async Task<List<NetTopologySuite.Geometries.Geometry>> GetGeometriesAsync(string schema, string table, BoundingBox bbox)
+    public async Task<List<NetTopologySuite.Geometries.Geometry>> GetGeometriesAsync(string schema, string table, BoundingBox bbox, IEnumerable<string>? properties = null, double pixelSize = 0)
     {
         using var conn = CreateConnection();
         string Quote(string id) => "\"" + id.Replace("\"", "\"\"") + "\"";
 
-        // Find geometry column and SRID from metadata
+        // Find geometry column and SRID
         var spatialInfo = await conn.QueryFirstOrDefaultAsync<(string? GeometryColumn, int Srid)>(
             "SELECT f_geometry_column, srid FROM geometry_columns WHERE f_table_schema = @Schema AND f_table_name = @Table",
             new { Schema = schema, Table = table });
@@ -221,106 +222,97 @@ public sealed class PostGISConnectionService : IPostGISConnectionService, IDispo
 
         if (string.IsNullOrEmpty(geomCol))
         {
-            // Fallback: try to guess column if not registered in geometry_columns
              var fallbackSql = @"
                 SELECT column_name 
                 FROM information_schema.columns
                 WHERE table_schema = @Schema AND table_name = @Table
-                  AND (udt_name IN ('geometry', 'geography') OR data_type = 'USER-DEFINED')";
+                AND (udt_name IN ('geometry', 'geography') OR data_type = 'USER-DEFINED')";
              geomCol = await conn.ExecuteScalarAsync<string>(fallbackSql, new { Schema = schema, Table = table });
         }
 
         if (string.IsNullOrEmpty(geomCol)) return new List<NetTopologySuite.Geometries.Geometry>();
 
-        // If SRID is 0, check the actual data
+        // Heuristic SRID check if needed
         if (srid == 0)
         {
-            try 
-            {
-                srid = await conn.ExecuteScalarAsync<int>($"SELECT ST_SRID({Quote(geomCol)}) FROM {Quote(schema)}.{Quote(table)} LIMIT 1");
-            }
-            catch { srid = 0; }
+             try { srid = await conn.ExecuteScalarAsync<int>($"SELECT ST_SRID({Quote(geomCol)}) FROM {Quote(schema)}.{Quote(table)} LIMIT 1"); } catch { srid = 0; }
         }
-
-        if (srid == 0)
-        {
-             // Heuristic: Check coordinate range to guess if it's Lat/Lon (4326) or Projected (likely 5179/5174)
-             try 
-             {
-                 var xMin = await conn.ExecuteScalarAsync<double?>($"SELECT ST_XMin({Quote(geomCol)}) FROM {Quote(schema)}.{Quote(table)} LIMIT 1");
-                 if (xMin.HasValue && xMin.Value >= -180.0 && xMin.Value <= 180.0)
-                 {
-                     srid = 4326;
-                     _logger.LogInformation("Guessed SRID 4326 (Lat/Lon) for {Schema}.{Table}", schema, table);
-                 }
-                 else if (xMin.HasValue && Math.Abs(xMin.Value) > 10_000_000 && Math.Abs(xMin.Value) < 20_037_508)
-                 {
-                     srid = 3857; // Likely Web Mercator
-                     _logger.LogInformation("Guessed SRID 3857 (Web Mercator) for {Schema}.{Table}", schema, table);
-                 }
-                 else
-                 {
-                     srid = 5179; // Default Korean projection
-                     _logger.LogInformation("Guessed SRID 5179 (Projected) for {Schema}.{Table}", schema, table);
-                 }
-             }
-             catch
-             {
-                 srid = 5179;
-             }
-        }
+        if (srid == 0) srid = 5179; 
 
         string geomExpr = Quote(geomCol);
-        // If the ACTUAL data srid is 0 (we just set variable srid=5179 but that's for logic), 
-        // we must use ST_SetSRID in SQL.
-        // To be safe, let's check what the DB thinks.
         
-        // Simpler approach: If we decided srid=5179 but the DB says 0, we need SetSRID.
-        // We can just construct the query carefully.
-        
+        // Prepare properties selection
+        var selectParts = new List<string> { };
+        if (properties != null)
+        {
+            foreach (var prop in properties)
+            {
+                selectParts.Add($"{Quote(prop)}"); // Select as is
+            }
+        }
+
+        string propSelect = selectParts.Count > 0 ? ", " + string.Join(", ", selectParts) : "";
+
+        double width = bbox.MaxX - bbox.MinX;
+        double buffer = width * 0.05;
+
+        // Simplification Logic
+        string finalGeomExpr = geomExpr;
+        if (pixelSize > 0)
+        {
+            finalGeomExpr = $"ST_SimplifyPreserveTopology({geomExpr}, {pixelSize})";
+        }
+
         string sql;
         if (srid == 3857 || srid == 900913)
         {
              sql = @$"
-                SELECT {Quote(geomCol)} as geom
+                SELECT {finalGeomExpr} as geom {propSelect}
                 FROM {Quote(schema)}.{Quote(table)}
                 WHERE ST_Intersects(
                     {Quote(geomCol)}, 
-                    ST_MakeEnvelope(@MinX, @MinY, @MaxX, @MaxY, 3857)
-                )
-                LIMIT 2000";
+                    ST_MakeEnvelope(@MinX - @Buffer, @MinY - @Buffer, @MaxX + @Buffer, @MaxY + @Buffer, 3857)
+                )";
         }
         else
         {
-             // If we suspect the data is raw (srid 0) but we treat it as 'srid' (e.g. 5179),
-             // we should wrap it.
-             // However, doing ST_SetSRID on data that IS ALREADY 5179 is harmless/redundant but okay.
-             // Doing it on data that is 0 is NECESSARY.
-             
-             // Construct source geometry expression
              string sourceGeom = $"ST_SetSRID({Quote(geomCol)}, {srid})"; 
-             // Logic: If data has an SRID, SetSRID just overrides it (essentially force). 
-             // This is good if metadata is wrong.
+             string transformed = $"ST_Transform({sourceGeom}, 3857)";
              
+             string selectGeom = pixelSize > 0 ? $"ST_SimplifyPreserveTopology({transformed}, {pixelSize})" : transformed;
+
              sql = @$"
-                SELECT ST_Transform({sourceGeom}, 3857) as geom
+                SELECT {selectGeom} as geom {propSelect}
                 FROM {Quote(schema)}.{Quote(table)}
                 WHERE ST_Intersects(
                     ST_Transform({sourceGeom}, 3857), 
-                    ST_MakeEnvelope(@MinX, @MinY, @MaxX, @MaxY, 3857)
-                )
-                LIMIT 2000";
+                    ST_MakeEnvelope(@MinX - @Buffer, @MinY - @Buffer, @MaxX + @Buffer, @MaxY + @Buffer, 3857)
+                )";
         }
 
-        // Use dynamic query instead of Geometry type to avoid Dapper mapping issues with abstract classes
         var result = await conn.QueryAsync<dynamic>(sql, 
-            new { bbox.MinX, bbox.MinY, bbox.MaxX, bbox.MaxY });
+            new { bbox.MinX, bbox.MinY, bbox.MaxX, bbox.MaxY, Buffer = buffer });
         
         var geometryList = new List<NetTopologySuite.Geometries.Geometry>();
         foreach (var row in result)
         {
             if (row.geom is NetTopologySuite.Geometries.Geometry g)
             {
+                // Attach attributes
+                if (properties != null)
+                {
+                    var dict = new Dictionary<string, object>();
+                    var rowData = (IDictionary<string, object>)row; // Dapper dynamic result implements IDictionary key=colname
+
+                    foreach (var prop in properties)
+                    {
+                        if (rowData.TryGetValue(prop, out var val) && val != null)
+                        {
+                            dict[prop] = val; // Keep original type
+                        }
+                    }
+                    g.UserData = dict;
+                }
                 geometryList.Add(g);
             }
         }

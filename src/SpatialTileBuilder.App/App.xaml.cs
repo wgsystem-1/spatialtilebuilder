@@ -6,8 +6,10 @@ using SpatialTileBuilder.Core.Interfaces;
 using SpatialTileBuilder.Infrastructure.Data;
 using Serilog;
 using SpatialTileBuilder.Infrastructure.Data.Repositories;
+using SpatialTileBuilder.Infrastructure.Rendering;
 using SpatialTileBuilder.Infrastructure.Services;
 using SpatialTileBuilder.App.ViewModels;
+using SpatialTileBuilder.App.Services;
 
 namespace SpatialTileBuilder.App;
 
@@ -74,7 +76,13 @@ public partial class App : Application
         services.AddTransient<IMapnikRenderer, SpatialTileBuilder.Infrastructure.Mapnik.MockMapnikRenderer>();
         services.AddTransient<ITileGridService, TileGridService>();
         services.AddTransient<ITileGenerationService, TileGenerationService>();
-        services.AddSingleton<SpatialTileBuilder.App.Services.ProjectStateService>();
+        
+        // Services
+        services.AddSingleton<ProjectService>();
+        services.AddSingleton<ProjectStateService>();
+        services.AddSingleton<DataSourceFactory>();
+        services.AddSingleton<LayerDataProviderFactory>();
+        services.AddSingleton<IMapRenderer, SkiaMapRenderer>();
 
         // ViewModels
         services.AddTransient<LoginViewModel>();
@@ -83,9 +91,20 @@ public partial class App : Application
         services.AddTransient<StylePreviewViewModel>();
         services.AddTransient<RegionSelectionViewModel>();
         services.AddTransient<GenerationMonitorViewModel>();
+        
+        services.AddTransient<SourceBrowserViewModel>();
+        services.AddTransient<MapCanvasViewModel>();
+        services.AddTransient<LayerListViewModel>();
+        services.AddTransient<MainWorkspaceViewModel>();
+        services.AddTransient<ExportViewModel>();
 
         // Windows/Views
         services.AddTransient<MainWindow>();
+
+        // Dialogs (if registered as services, otherwise they are just Views)
+        // AddSourceDialogViewModel is used in SourceBrowserViewModel (created manually or via factory)
+        // Let's register it just in case
+        services.AddTransient<SpatialTileBuilder.App.ViewModels.Dialogs.AddSourceDialogViewModel>();
 
         return services.BuildServiceProvider();
     }

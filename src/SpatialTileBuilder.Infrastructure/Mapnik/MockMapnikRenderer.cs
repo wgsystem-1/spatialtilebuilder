@@ -1,14 +1,18 @@
 namespace SpatialTileBuilder.Infrastructure.Mapnik;
 
 using SkiaSharp;
+using SpatialTileBuilder.Core.DTOs;
 using SpatialTileBuilder.Core.Interfaces;
 using System;
-using System.IO;
+using System.Collections.Generic;
+using System.Linq;
+using NetTopologySuite.Geometries;
 
 public class MockMapnikRenderer : IMapnikRenderer
 {
     private readonly IPostGISConnectionService _connectionService;
-    private System.Collections.Generic.List<SpatialTileBuilder.Core.DTOs.LayerStyle> _layers = new();
+    private List<LayerConfig> _layers = new();
+
 
     public MockMapnikRenderer(IPostGISConnectionService connectionService)
     {
@@ -21,23 +25,23 @@ public class MockMapnikRenderer : IMapnikRenderer
 
     public void SetDatasource(string connectionString) { }
 
-    public void SetLayers(System.Collections.Generic.List<SpatialTileBuilder.Core.DTOs.LayerStyle> layers)
+    public void SetLayers(List<LayerConfig> layers)
     {
         _layers = layers;
     }
 
-    public byte[] RenderTile(int z, int x, int y, int tileSize = 256)
+    public byte[]? RenderTile(int z, int x, int y, int tileSize = 256)
     {
         var bbox = TileToBBox(x, y, z);
 
         using var surface = SKSurface.Create(new SKImageInfo(tileSize, tileSize));
         var canvas = surface.Canvas;
-        canvas.Clear(SKColors.Transparent); // Make background transparent or white? Usually transparent for tiles.
+        canvas.Clear(SKColors.Transparent);
+        
+        // Thread-Local label bounds for collision detection within this tile
+        var labelBounds = new List<SKRect>();
 
-        // Draw a light border for debugging? Or remove it for final. 
-        // Let's keep a very faint one or remove it if user wants clean tiles.
-        // using var borderPaint = new SKPaint { Color = SKColors.LightGray, Style = SKPaintStyle.Stroke, StrokeWidth = 1 };
-        // canvas.DrawRect(0, 0, tileSize, tileSize, borderPaint);
+        bool drawnSomething = false;
 
         try 
         {
@@ -45,14 +49,44 @@ public class MockMapnikRenderer : IMapnikRenderer
             {
                 foreach (var layer in _layers)
                 {
-                   if (!layer.IsVisible) continue; // Skip invisible
+                   if (!layer.IsVisible) continue;
 
-                   var list = _connectionService.GetGeometriesAsync(layer.TableInfo.Schema, layer.TableInfo.Table, bbox).Result;
-                   if (list != null)
+                   // Calculate pixelSize (resolution in meters/pixel)
+                   double resolution = (bbox.MaxX - bbox.MinX) / tileSize;
+
+                   // Parse schema/table
+                   string schema = "public";
+                   string table = layer.SourceName;
+                   if (table.Contains("."))
                    {
+                       var parts = table.Split('.');
+                       schema = parts[0];
+                       table = parts[1];
+                   }
+
+                   // Collect properties
+                   List<string>? properties = null;
+                   if (layer.Rules != null && layer.Rules.Any())
+                   {
+                       properties = layer.Rules
+                           .Where(r => r.Filter != null)
+                           .Select(r => r.Filter!.ColumnName)
+                           .Distinct()
+                           .ToList();
+                   }
+                   if (!string.IsNullOrEmpty(layer.LabelColumn))
+                   {
+                       if (properties == null) properties = new List<string>();
+                       if (!properties.Contains(layer.LabelColumn)) properties.Add(layer.LabelColumn);
+                   }
+
+                   var list = _connectionService.GetGeometriesAsync(schema, table, bbox, properties, resolution).Result;
+                   if (list != null && list.Count > 0)
+                   {
+                        drawnSomething = true;
                         foreach (var geom in list)
                         {
-                            DrawGeometry(canvas, geom, bbox, tileSize, tileSize, layer);
+                            DrawGeometry(canvas, geom, bbox, tileSize, tileSize, layer, labelBounds);
                         }
                    }
                 }
@@ -60,55 +94,78 @@ public class MockMapnikRenderer : IMapnikRenderer
         }
         catch (Exception) { }
 
+        if (!drawnSomething) return null;
+
         using var image = surface.Snapshot();
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
         return data.ToArray();
     }
 
-    private void DrawGeometry(SKCanvas canvas, NetTopologySuite.Geometries.Geometry geom, SpatialTileBuilder.Core.DTOs.BoundingBox bbox, int width, int height, SpatialTileBuilder.Core.DTOs.LayerStyle style)
+    private void DrawGeometry(SKCanvas canvas, Geometry geom, BoundingBox bbox, int width, int height, LayerConfig layer, List<SKRect> labelBounds)
     {
         double rangeX = bbox.MaxX - bbox.MinX;
         double rangeY = bbox.MaxY - bbox.MinY;
 
-        SKPoint Transform(NetTopologySuite.Geometries.Coordinate c)
+        SKPoint Transform(Coordinate c)
         {
              float px = (float)((c.X - bbox.MinX) / rangeX * width);
              float py = (float)((bbox.MaxY - c.Y) / rangeY * height); 
              return new SKPoint(px, py);
         }
 
-        // Parse Paints
+        // Determine Style
+        var rule = GetMatchingRule(geom, layer);
+        if (rule != null && !rule.IsVisible) return; // Hidden by rule
+
+        // Fallback or Rule Style
+        string fillColor = rule?.FillColor ?? layer.FillColor;
+        bool isFillVisible = rule?.IsVisible ?? layer.IsFillVisible; // Rule IsVisible usually implies "Show this rule", but assumed true if matched. Using Layer's general toggle?
+        // Actually StyleRule IsVisible is explicit. If rule matched and IsVisible=false, we skip.
+        // Assuming if rule matched, we use rule's colors.
+        
+        string strokeColor = rule?.StrokeColor ?? layer.StrokeColor;
+        double strokeWidth = rule?.StrokeWidth ?? layer.StrokeWidth;
+        double opacity = layer.Opacity; // Apply layer opacity globaly
+
+        // Paints
         using var fillPaint = new SKPaint
         {
-            Color = ParseColor(style.FillColor, style.Opacity),
+            Color = ParseColor(fillColor, opacity),
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
 
         using var strokePaint = new SKPaint
         {
-            Color = ParseColor(style.StrokeColor, 1.0), // Stroke opacity separate? Or assume 1? Let's use 1 for now or blend opacity.
+            Color = ParseColor(strokeColor, opacity), // Stroke opacity separate? Or assume 1? Let's use 1 for now or blend opacity.
             Style = SKPaintStyle.Stroke,
-            StrokeWidth = (float)style.StrokeWidth,
+            StrokeWidth = (float)strokeWidth,
             IsAntialias = true
         };
         
-        if (style.StrokeDashArray == "Dash") strokePaint.PathEffect = SKPathEffect.CreateDash(new float[] { 10, 5 }, 0);
-        else if (style.StrokeDashArray == "Dot") strokePaint.PathEffect = SKPathEffect.CreateDash(new float[] { 2, 2 }, 0);
+        // Dash Support in LayerConfig?
+        if (layer.StrokeDashArray == "Dash") strokePaint.PathEffect = SKPathEffect.CreateDash(new float[] { 10, 5 }, 0);
+        else if (layer.StrokeDashArray == "Dot") strokePaint.PathEffect = SKPathEffect.CreateDash(new float[] { 2, 2 }, 0);
 
         using var pointPaint = new SKPaint
         {
-            Color = ParseColor(style.PointColor, 1.0),
+            Color = ParseColor(layer.PointColor, opacity), // Point color not in Rule yet? StyleRule has colors.
+            // StyleRule defines FillColor/StrokeColor. Let's use FillColor for Point.
+            // Wait, LayerConfig has PointColor. Rule doesn't have PointColor explicitly, uses FillColor?
+            // Let's use FillColor from rule for Point if rule exists.
+            
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
+        if (rule != null) pointPaint.Color = ParseColor(rule.FillColor, opacity);
 
-        if (geom is NetTopologySuite.Geometries.Point p)
+        if (geom is Point p)
         {
             var pt = Transform(p.Coordinate);
-            canvas.DrawCircle(pt, (float)style.PointSize, pointPaint);
+            canvas.DrawCircle(pt, (float)layer.PointSize, pointPaint);
+            DrawLabel(canvas, layer, geom, pt, labelBounds);
         }
-        else if (geom is NetTopologySuite.Geometries.LineString ls)
+        else if (geom is LineString ls)
         {
             using var path = new SKPath();
             var coords = ls.Coordinates;
@@ -117,9 +174,17 @@ public class MockMapnikRenderer : IMapnikRenderer
                 path.MoveTo(Transform(coords[0]));
                 for(int i = 1; i < coords.Length; i++) path.LineTo(Transform(coords[i]));
                 canvas.DrawPath(path, strokePaint);
+                
+                // Label at midpoint
+                if (!string.IsNullOrEmpty(layer.LabelColumn))
+                {
+                    var midIndex = coords.Length / 2;
+                    var pt = Transform(coords[midIndex]);
+                    DrawLabel(canvas, layer, geom, pt, labelBounds);
+                }
             }
         }
-        else if (geom is NetTopologySuite.Geometries.Polygon poly)
+        else if (geom is Polygon poly)
         {
             using var path = new SKPath();
             var exCoords = poly.ExteriorRing.Coordinates;
@@ -142,22 +207,131 @@ public class MockMapnikRenderer : IMapnikRenderer
 
                 path.FillType = SKPathFillType.EvenOdd;
                 
-                if (style.IsFillVisible) canvas.DrawPath(path, fillPaint);
+                if (isFillVisible) canvas.DrawPath(path, fillPaint);
                 canvas.DrawPath(path, strokePaint);
+                
+                // Label at centroid
+                if (!string.IsNullOrEmpty(layer.LabelColumn))
+                {
+                    var centroid = poly.Centroid;
+                    if (centroid != null)
+                    {
+                        DrawLabel(canvas, layer, geom, Transform(centroid.Coordinate), labelBounds);
+                    }
+                }
             }
         }
-        else if (geom is NetTopologySuite.Geometries.MultiLineString mls)
+        else if (geom is MultiLineString mls)
         {
-            foreach (var g in mls.Geometries) DrawGeometry(canvas, g, bbox, width, height, style);
+            foreach (var g in mls.Geometries) DrawGeometry(canvas, g, bbox, width, height, layer, labelBounds);
         }
-        else if (geom is NetTopologySuite.Geometries.MultiPolygon mpoly)
+        else if (geom is MultiPolygon mpoly)
         {
-            foreach (var g in mpoly.Geometries) DrawGeometry(canvas, g, bbox, width, height, style);
+            foreach (var g in mpoly.Geometries) DrawGeometry(canvas, g, bbox, width, height, layer, labelBounds);
         }
-        else if (geom is NetTopologySuite.Geometries.GeometryCollection gc)
+        else if (geom is GeometryCollection gc)
         {
-            foreach (var g in gc.Geometries) DrawGeometry(canvas, g, bbox, width, height, style);
+            foreach (var g in gc.Geometries) DrawGeometry(canvas, g, bbox, width, height, layer, labelBounds);
         }
+    }
+    
+    private StyleRule? GetMatchingRule(Geometry geom, LayerConfig layer)
+    {
+        if (layer.Rules == null || layer.Rules.Count == 0) return null;
+
+        var attributes = geom.UserData as IDictionary<string, object>;
+
+        foreach (var rule in layer.Rules)
+        {
+            if (rule.Filter == null) return rule; 
+            if (attributes != null && EvaluateFilter(rule.Filter, attributes))
+            {
+                return rule;
+            }
+        }
+        return null; 
+    }
+
+    private bool EvaluateFilter(FilterCondition filter, IDictionary<string, object> attributes)
+    {
+        if (!attributes.TryGetValue(filter.ColumnName, out var val) || val == null) return false;
+        
+        string sVal = val.ToString() ?? "";
+        string fVal = filter.Value;
+
+        switch (filter.Operator)
+        {
+            case FilterOperator.Equals: return sVal.Equals(fVal, StringComparison.OrdinalIgnoreCase); 
+            case FilterOperator.NotEquals: return !sVal.Equals(fVal, StringComparison.OrdinalIgnoreCase);
+            case FilterOperator.Contains: return sVal.IndexOf(fVal, StringComparison.OrdinalIgnoreCase) >= 0;
+            default: return false;
+        }
+    }
+
+    private void DrawLabel(SKCanvas canvas, LayerConfig layer, Geometry geom, SKPoint position, List<SKRect> labelBounds)
+    {
+        if (string.IsNullOrEmpty(layer.LabelColumn)) return;
+
+        // UserData handling
+        string text = "";
+        if (geom.UserData is IDictionary<string, object> attrs)
+        {
+            if (attrs.TryGetValue(layer.LabelColumn, out var val) && val != null)
+                text = val.ToString() ?? "";
+        }
+        else if (geom.UserData is IDictionary<string, string> strAttrs)
+        {
+             if (strAttrs.TryGetValue(layer.LabelColumn, out var val) && val != null)
+                text = val;
+        }
+
+        if (string.IsNullOrWhiteSpace(text)) return;
+
+        // Create Typeface
+        using var typeface = (!string.IsNullOrEmpty(layer.FontName)) 
+            ? SKTypeface.FromFamilyName(layer.FontName)
+            : SKTypeface.FromFamilyName("Arial");
+
+        using var paint = new SKPaint
+        {
+            Color = ParseColor(layer.LabelColor, 1.0),
+            TextSize = (float)layer.LabelSize,
+            IsAntialias = true,
+            TextAlign = SKTextAlign.Center,
+            Typeface = typeface
+        };
+
+        var bounds = new SKRect();
+        paint.MeasureText(text, ref bounds);
+        
+        var halfW = bounds.Width / 2;
+        var halfH = bounds.Height / 2;
+        var rect = new SKRect(position.X - halfW, position.Y - halfH, position.X + halfW, position.Y + halfH);
+        
+        rect.Inflate(2, 2);
+
+        foreach(var occupied in labelBounds)
+        {
+            if (rect.IntersectsWith(occupied)) return; 
+        }
+
+        if (layer.LabelHaloRadius > 0)
+        {
+            using var haloPaint = new SKPaint
+            {
+                Color = SKColors.White, // Default halo white
+                TextSize = (float)layer.LabelSize,
+                IsAntialias = true,
+                TextAlign = SKTextAlign.Center,
+                Style = SKPaintStyle.Stroke,
+                StrokeWidth = (float)layer.LabelHaloRadius * 2,
+                Typeface = typeface
+            };
+             canvas.DrawText(text, position.X, position.Y - bounds.MidY, haloPaint);
+        }
+
+        canvas.DrawText(text, position.X, position.Y - bounds.MidY, paint);
+        labelBounds.Add(rect); // Use local list
     }
 
     private SKColor ParseColor(string hex, double opacity)
@@ -170,23 +344,18 @@ public class MockMapnikRenderer : IMapnikRenderer
         return SKColors.Gray;
     }
 
-    private SpatialTileBuilder.Core.DTOs.BoundingBox TileToBBox(int x, int y, int z)
+    private BoundingBox TileToBBox(int x, int y, int z)
     {
         // EPSG:3857 Bounds
         double max = 20037508.34;
-        // Tile Size in meters
         double res = (max * 2) / Math.Pow(2, z);
         
         double tileMinX = -max + (x * res);
         double tileMaxX = -max + ((x + 1) * res);
         
-        // Y origin for TMS is bottom-left, but for XYZ (Google/OSM) it is top-left.
-        // We usually use XYZ.
-        // For XYZ: 0 is top.
         double tileMaxY = max - (y * res);
         double tileMinY = max - ((y + 1) * res);
         
-        return new SpatialTileBuilder.Core.DTOs.BoundingBox(tileMinX, tileMinY, tileMaxX, tileMaxY);
+        return new BoundingBox(tileMinX, tileMinY, tileMaxX, tileMaxY);
     }
 }
-

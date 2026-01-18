@@ -46,6 +46,9 @@ public partial class RegionSelectionViewModel : ObservableObject
     [ObservableProperty] private long _estimatedTileCount;
     [ObservableProperty] private string _estimationMessage = string.Empty;
 
+    // Threads
+    [ObservableProperty] private int _threadCount = System.Environment.ProcessorCount;
+
     private readonly SpatialTileBuilder.App.Services.ProjectStateService _stateService;
 
     public RegionSelectionViewModel(ITileGridService tileGridService, SpatialTileBuilder.App.Services.ProjectStateService stateService)
@@ -60,13 +63,78 @@ public partial class RegionSelectionViewModel : ObservableObject
         CalculateEstimationCommand.Execute(null);
     }
 
+    private NetTopologySuite.Geometries.Geometry? _loadedRegionShape;
+
     [RelayCommand]
     private void BrowsePolygon()
     {
-        // TODO: Implement file picker dialog through a service or code-behind interaction
-        // For now, placeholder
-        PolygonFilePath = "Start picking file..."; 
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+             Filter = "Spatial Files (*.shp;*.geojson;*.json)|*.shp;*.geojson;*.json|All Files (*.*)|*.*",
+             Title = "Select Region Polygon"
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            PolygonFilePath = dialog.FileName;
+            LoadPolygonFile(PolygonFilePath);
+        }
     }
+
+    private void LoadPolygonFile(string path)
+    {
+        try
+        {
+            NetTopologySuite.Geometries.Geometry? geometry = null;
+            var ext = System.IO.Path.GetExtension(path).ToLower();
+
+            if (ext == ".geojson" || ext == ".json")
+            {
+                var reader = new NetTopologySuite.IO.GeoJsonReader();
+                var json = System.IO.File.ReadAllText(path);
+                geometry = reader.Read<NetTopologySuite.Geometries.Geometry>(json);
+            }
+            else if (ext == ".shp")
+            {
+                // Shapefile reading using NetTopologySuite.IO.ShapeFile
+                var factory = new NetTopologySuite.Geometries.GeometryFactory();
+                using var reader = new NetTopologySuite.IO.ShapefileDataReader(path, factory);
+                
+                var geoms = new List<NetTopologySuite.Geometries.Geometry>();
+                while (reader.Read())
+                {
+                    geoms.Add(reader.Geometry);
+                }
+                
+                if (geoms.Count == 1) geometry = geoms[0];
+                else if (geoms.Count > 1) geometry = factory.CreateGeometryCollection(geoms.ToArray()).Union();
+            }
+
+            if (geometry != null)
+            {
+                _loadedRegionShape = geometry;
+                // Calculate envelope (WGS84 assumed)
+                var env = geometry.EnvelopeInternal;
+                MinX = env.MinX.ToString();
+                MinY = env.MinY.ToString();
+                MaxX = env.MaxX.ToString();
+                MaxY = env.MaxY.ToString();
+                
+                EstimationMessage = "Polygon loaded successfully. BBox updated.";
+                // Trigger estimation?
+                CalculateEstimationCommand.Execute(null);
+            }
+        }
+        catch (Exception ex)
+        {
+             EstimationMessage = $"Failed to load polygon: {ex.Message}";
+             _loadedRegionShape = null;
+        }
+    }
+
+    // Format
+    [ObservableProperty] private string _selectedOutputFormat = "xyz";
+    public List<string> OutputFormats { get; } = new() { "xyz", "mbtiles" };
 
     [RelayCommand]
     private void CalculateEstimation()
@@ -75,23 +143,54 @@ public partial class RegionSelectionViewModel : ObservableObject
         {
             BoundingBox bbox = GetCurrentBbox();
             
+            // Refined total calculation if polygon is present?
+            // Currently TileGridService.CalculateTotalTiles is simplistic (rectangle).
+            // We'll trust it as an upper bound.
+            
             EstimatedTileCount = _tileGridService.CalculateTotalTiles(bbox, MinZoom, MaxZoom);
             EstimationMessage = $"Estimated: {EstimatedTileCount:N0} tiles";
             
+            // Adjust path based on format
+            string defaultPath = System.IO.Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments), "SpatialTiles");
+            string output = defaultPath;
+            if (SelectedOutputFormat == "mbtiles")
+            {
+                 output = System.IO.Path.Combine(defaultPath, "output.mbtiles");
+            }
+
             // Save to shared state
             _stateService.Options = new GenerationOptions(
-                OutputPath: System.IO.Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments), "SpatialTiles"), // Default path
-                OutputFormat: "xyz",
+                OutputPath: output,
+                OutputFormat: SelectedOutputFormat,
                 MinZoom: MinZoom,
                 MaxZoom: MaxZoom,
                 Bbox: bbox,
                 Overwrite: true,
-                ThreadCount: 4,
+                ThreadCount: ThreadCount,
                 Layers: _stateService.StyledLayers.Any() 
                     ? new(_stateService.StyledLayers) 
-                    : new(_stateService.SelectedLayers.Select(l => new LayerStyle(
-                        l.Table, true, "#ADD8E6", 0.8, true, "#808080", 1.0, "Solid", "", 12, "#000000", 0, "#FF0000", 5
-                      )))
+                    : new(_stateService.SelectedLayers.Select(l => new LayerConfig(
+                        Id: Guid.NewGuid().ToString(),
+                        Name: l.Table.Table,
+                        DataSourceId: "",
+                        SourceName: l.Table.Schema + "." + l.Table.Table,
+                        IsVisible: true,
+                        Opacity: 0.8,
+                        FillColor: "#ADD8E6",
+                        IsFillVisible: true,
+                        StrokeColor: "#808080",
+                        StrokeWidth: 1.0,
+                        StrokeDashArray: "Solid",
+                        LabelColumn: "",
+                        LabelSize: 12,
+                        LabelColor: "#000000",
+                        LabelHaloRadius: 0,
+                        FontName: "Arial",
+                        PointColor: "#FF0000",
+                        PointSize: 5,
+                        Rules: null
+                      ))),
+                RegionShape: (SelectedRegionType == RegionType.Polygon) ? _loadedRegionShape : null
             );
         }
         catch (Exception ex)

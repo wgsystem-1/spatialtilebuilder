@@ -24,12 +24,25 @@
                     <StackPanel>
                         <!-- Saved Connections -->
                         <TextBlock Text="저장된 연결 (Saved Connections)" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                        <ComboBox ItemsSource="{Binding ViewModel.SavedConnections}" 
-                                  SelectedItem="{Binding ViewModel.SelectedConnection, Mode=TwoWay}"
-                                  DisplayMemberPath="Name"
-                                  materialDesign:HintAssist.Hint="이전 연결 선택"
-                                  Margin="0,0,0,24"
-                                  Style="{DynamicResource MaterialDesignComboBox}"/>
+                        <Grid Margin="0,0,0,24">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ComboBox ItemsSource="{Binding ViewModel.SavedConnections}" 
+                                      SelectedItem="{Binding ViewModel.SelectedConnection, Mode=TwoWay}"
+                                      DisplayMemberPath="Name"
+                                      materialDesign:HintAssist.Hint="이전 연결 선택"
+                                      Style="{DynamicResource MaterialDesignComboBox}"
+                                      Margin="0,0,12,0"/>
+                            
+                            <Button Grid.Column="1" 
+                                    Content="삭제" 
+                                    Command="{Binding ViewModel.DeleteConnectionCommand}"
+                                    Style="{DynamicResource MaterialDesignOutlinedButton}"
+                                    Width="80"
+                                    ToolTip="선택한 저장된 연결 삭제"/>
+                        </Grid>
                                   
                         <!-- Host & Port -->
                         <TextBlock Text="서버 정보" FontWeight="SemiBold" Margin="0,0,0,8"/>

@@ -50,7 +50,7 @@ public class MapnikStyleService : IMapnikStyleService
 
                 foreach (var ruleElem in styleElem.Elements("Rule"))
                 {
-                    var rule = new StyleRule
+                    var rule = new MapnikStyleRule
                     {
                         Filter = ruleElem.Element("Filter")?.Value,
                         MinScaleDenominator = (double?)ruleElem.Element("MinScaleDenominator"),

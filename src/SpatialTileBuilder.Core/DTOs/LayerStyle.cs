@@ -13,6 +13,7 @@ public record LayerStyle(
     double LabelSize,
     string LabelColor,
     double LabelHaloRadius,
+    string FontName,
     string PointColor,
     double PointSize
 );

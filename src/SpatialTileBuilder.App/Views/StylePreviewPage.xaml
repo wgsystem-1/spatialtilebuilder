@@ -10,6 +10,10 @@
       d:DesignHeight="800" d:DesignWidth="1400"
       Background="{DynamicResource MaterialDesignPaper}">
 
+    <Page.Resources>
+        <converters:ColorToHexConverter x:Key="ColorToHexConverter"/>
+    </Page.Resources>
+
     <Grid Margin="16">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="380"/>
@@ -70,7 +74,12 @@
                                     </Grid.ColumnDefinitions>
                                     <TextBox Text="{Binding ViewModel.SelectedLayer.FillColor, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                              materialDesign:HintAssist.Hint="Fill Color (Hex)" VerticalAlignment="Center"/>
-                                    <Border Background="{Binding ViewModel.SelectedLayer.FillColor}" Width="20" Height="20" Margin="8,0,0,0" BorderBrush="Gray" BorderThickness="1" Grid.Column="1"/>
+                                    <materialDesign:PopupBox StaysOpen="False" PlacementMode="BottomAndAlignRightEdges" Grid.Column="1" Margin="8,0,0,0">
+                                        <materialDesign:PopupBox.ToggleContent>
+                                            <Border Background="{Binding ViewModel.SelectedLayer.FillColor}" Width="20" Height="20" BorderBrush="Gray" BorderThickness="1" ToolTip="Pick Color"/>
+                                        </materialDesign:PopupBox.ToggleContent>
+                                        <materialDesign:ColorPicker Color="{Binding ViewModel.SelectedLayer.FillColor, Converter={StaticResource ColorToHexConverter}, Mode=TwoWay}" />
+                                    </materialDesign:PopupBox>
                                 </Grid>
                                 <TextBlock Text="Opacity (투명도)" FontSize="11" Margin="0,4,0,0"/>
                                 <Slider Value="{Binding ViewModel.SelectedLayer.Opacity, Mode=TwoWay}" 
@@ -88,7 +97,12 @@
                                     </Grid.ColumnDefinitions>
                                     <TextBox Text="{Binding ViewModel.SelectedLayer.StrokeColor, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                              materialDesign:HintAssist.Hint="Line Color (Hex)" VerticalAlignment="Center"/>
-                                    <Border Background="{Binding ViewModel.SelectedLayer.StrokeColor}" Width="20" Height="20" Margin="8,0,0,0" BorderBrush="Gray" BorderThickness="1" Grid.Column="1"/>
+                                    <materialDesign:PopupBox StaysOpen="False" PlacementMode="BottomAndAlignRightEdges" Grid.Column="1" Margin="8,0,0,0">
+                                        <materialDesign:PopupBox.ToggleContent>
+                                            <Border Background="{Binding ViewModel.SelectedLayer.StrokeColor}" Width="20" Height="20" BorderBrush="Gray" BorderThickness="1" ToolTip="Pick Color"/>
+                                        </materialDesign:PopupBox.ToggleContent>
+                                        <materialDesign:ColorPicker Color="{Binding ViewModel.SelectedLayer.StrokeColor, Converter={StaticResource ColorToHexConverter}, Mode=TwoWay}" />
+                                    </materialDesign:PopupBox>
                                 </Grid>
                                 <TextBox Text="{Binding ViewModel.SelectedLayer.StrokeWidth, Mode=TwoWay}"
                                          materialDesign:HintAssist.Hint="Width (두께)" Margin="0,0,0,8"/>
@@ -112,9 +126,26 @@
                                     </Grid.ColumnDefinitions>
                                     <TextBox Text="{Binding ViewModel.SelectedLayer.LabelSize, Mode=TwoWay}"
                                              materialDesign:HintAssist.Hint="Size (크기)" Margin="0,0,4,0"/>
-                                    <TextBox Text="{Binding ViewModel.SelectedLayer.LabelColor, Mode=TwoWay}"
-                                             materialDesign:HintAssist.Hint="Color (색상)" Grid.Column="1" Margin="4,0,0,0"/>
+                                    
+                                     <Grid Grid.Column="1" Margin="4,0,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Text="{Binding ViewModel.SelectedLayer.LabelColor, Mode=TwoWay}"
+                                                 materialDesign:HintAssist.Hint="Color (색상)" VerticalAlignment="Center"/>
+                                        <materialDesign:PopupBox StaysOpen="False" PlacementMode="BottomAndAlignRightEdges" Grid.Column="1" Margin="4,0,0,0">
+                                            <materialDesign:PopupBox.ToggleContent>
+                                                <Border Background="{Binding ViewModel.SelectedLayer.LabelColor}" Width="20" Height="20" BorderBrush="Gray" BorderThickness="1" ToolTip="Pick Color"/>
+                                            </materialDesign:PopupBox.ToggleContent>
+                                            <materialDesign:ColorPicker Color="{Binding ViewModel.SelectedLayer.LabelColor, Converter={StaticResource ColorToHexConverter}, Mode=TwoWay}" />
+                                        </materialDesign:PopupBox>
+                                    </Grid>
                                 </Grid>
+                                <ComboBox ItemsSource="{Binding ViewModel.SelectedLayer.AvailableFonts}" 
+                                          SelectedItem="{Binding ViewModel.SelectedLayer.FontName, Mode=TwoWay}"
+                                          materialDesign:HintAssist.Hint="Font Family (글꼴)"
+                                          Margin="0,0,0,8"/>
                                 <TextBox Text="{Binding ViewModel.SelectedLayer.LabelHaloRadius, Mode=TwoWay}"
                                          materialDesign:HintAssist.Hint="Halo Radius (테두리 두께)"/>
                             </StackPanel>
@@ -130,8 +161,21 @@
                                     </Grid.ColumnDefinitions>
                                     <TextBox Text="{Binding ViewModel.SelectedLayer.PointSize, Mode=TwoWay}"
                                              materialDesign:HintAssist.Hint="Size (크기)" Margin="0,0,4,0"/>
-                                    <TextBox Text="{Binding ViewModel.SelectedLayer.PointColor, Mode=TwoWay}"
-                                             materialDesign:HintAssist.Hint="Color (색상)" Grid.Column="1" Margin="4,0,0,0"/>
+                                    
+                                    <Grid Grid.Column="1" Margin="4,0,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Text="{Binding ViewModel.SelectedLayer.PointColor, Mode=TwoWay}"
+                                                 materialDesign:HintAssist.Hint="Color (색상)" VerticalAlignment="Center"/>
+                                        <materialDesign:PopupBox StaysOpen="False" PlacementMode="BottomAndAlignRightEdges" Grid.Column="1" Margin="4,0,0,0">
+                                            <materialDesign:PopupBox.ToggleContent>
+                                                <Border Background="{Binding ViewModel.SelectedLayer.PointColor}" Width="20" Height="20" BorderBrush="Gray" BorderThickness="1" ToolTip="Pick Color"/>
+                                            </materialDesign:PopupBox.ToggleContent>
+                                            <materialDesign:ColorPicker Color="{Binding ViewModel.SelectedLayer.PointColor, Converter={StaticResource ColorToHexConverter}, Mode=TwoWay}" />
+                                        </materialDesign:PopupBox>
+                                    </Grid>
                                 </Grid>
                             </StackPanel>
                         </Expander>
@@ -157,14 +201,32 @@
                           materialDesign:HintAssist.Hint="Zoom Level"
                           Width="100" Margin="0,0,16,0"/>
                 
-                <Button Content="Refresh" Command="{Binding ViewModel.LoadStyleCommand}" 
-                        Style="{DynamicResource MaterialDesignOutlinedButton}"/>
+                <Button Content="Apply " Command="{Binding ViewModel.LoadStyleCommand}" 
+                        Style="{DynamicResource MaterialDesignRaisedButton}" Width="80" Margin="0,0,8,0" ToolTip="Apply Style (적용)"/>
+                
+                <Button Content="Save" Command="{Binding ViewModel.SaveStyleJsonCommand}" 
+                        Style="{DynamicResource MaterialDesignOutlinedButton}" Width="70" Margin="0,0,8,0" ToolTip="Save Style (설정 저장)"/>
+                        
+                <Button Content="Load" Command="{Binding ViewModel.LoadStyleJsonCommand}" 
+                        Style="{DynamicResource MaterialDesignOutlinedButton}" Width="70" ToolTip="Load config (설정 불러오기)"/>
             </StackPanel>
 
             <!-- Map Image -->
-            <Border Grid.Row="1" BorderBrush="LightGray" BorderThickness="1" Background="#F0F0F0">
+            <Border Grid.Row="1" BorderBrush="LightGray" BorderThickness="1" Background="#F0F0F0"
+                    ClipToBounds="True"
+                    MouseWheel="Border_MouseWheel"
+                    MouseLeftButtonDown="Border_MouseLeftButtonDown"
+                    MouseMove="Border_MouseMove"
+                    MouseLeftButtonUp="Border_MouseLeftButtonUp">
                 <Grid>
-                    <Image Source="{Binding ViewModel.PreviewImage}" Stretch="Uniform" />
+                    <Image Source="{Binding ViewModel.PreviewImage}" Stretch="Uniform" RenderTransformOrigin="0.5,0.5">
+                         <Image.RenderTransform>
+                            <TransformGroup>
+                                <ScaleTransform x:Name="ImgScale"/>
+                                <TranslateTransform x:Name="ImgTranslate"/>
+                            </TransformGroup>
+                        </Image.RenderTransform>
+                    </Image>
                     <TextBlock Text="No Preview Available" 
                                HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="Gray">
                         <TextBlock.Style>

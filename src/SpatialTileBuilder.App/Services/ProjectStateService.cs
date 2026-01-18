@@ -8,5 +8,5 @@ public class ProjectStateService
 {
     public GenerationOptions? Options { get; set; }
     public List<SelectableSpatialTable> SelectedLayers { get; set; } = new();
-    public List<LayerStyle> StyledLayers { get; set; } = new();
+    public List<LayerConfig> StyledLayers { get; set; } = new();
 }

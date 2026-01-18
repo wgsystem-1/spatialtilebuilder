@@ -47,9 +47,7 @@
                   materialDesign:DataGridAssist.CellPadding="13 8 8 8"
                   materialDesign:DataGridAssist.ColumnHeaderPadding="8">
             <DataGrid.Columns>
-                <DataGridCheckBoxColumn Binding="{Binding IsSelected, Mode=TwoWay}" 
-                                        ElementStyle="{StaticResource MaterialDesignDataGridCheckBoxColumnStyle}"
-                                        EditingElementStyle="{StaticResource MaterialDesignDataGridCheckBoxColumnEditingStyle}">
+                <DataGridCheckBoxColumn Binding="{Binding IsSelected, Mode=TwoWay}">
                     <DataGridCheckBoxColumn.HeaderTemplate>
                         <DataTemplate>
                            <TextBlock Text=""/> <!-- Select All Checkbox logic could go here later -->

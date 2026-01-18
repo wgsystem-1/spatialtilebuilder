@@ -27,10 +27,10 @@ public class StyleDatasource
 public class StyleDefinition
 {
     public string Name { get; set; } = string.Empty;
-    public List<StyleRule> Rules { get; set; } = new();
+    public List<MapnikStyleRule> Rules { get; set; } = new();
 }
 
-public class StyleRule
+public class MapnikStyleRule
 {
     public string? Filter { get; set; }
     public double? MaxScaleDenominator { get; set; }

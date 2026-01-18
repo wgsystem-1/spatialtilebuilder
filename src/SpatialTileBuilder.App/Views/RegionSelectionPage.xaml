@@ -80,9 +80,27 @@
                 </Border>
 
                 <!-- Zoom Levels -->
-                <StackPanel Orientation="Horizontal">
-                    <TextBox Text="{Binding ViewModel.MinZoom, Mode=TwoWay}"/>
-                    <TextBox Text="{Binding ViewModel.MaxZoom, Mode=TwoWay}"/>
+                <StackPanel Orientation="Horizontal" Margin="0,16,0,16">
+                    <TextBlock Text="Zoom Levels:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBox Text="{Binding ViewModel.MinZoom, Mode=TwoWay}" Width="50" Margin="0,0,16,0"/>
+                    <TextBlock Text="to" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBox Text="{Binding ViewModel.MaxZoom, Mode=TwoWay}" Width="50"/>
+                </StackPanel>
+
+                <!-- Output Format -->
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                    <TextBlock Text="Output Format:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <ComboBox ItemsSource="{Binding ViewModel.OutputFormats}" 
+                              SelectedItem="{Binding ViewModel.SelectedOutputFormat, Mode=TwoWay}"
+                              Width="120"
+                              VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Thread Count -->
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                    <TextBlock Text="Threads (멀티스레드):" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <Slider Minimum="1" Maximum="32" Value="{Binding ViewModel.ThreadCount}" Width="200" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBox Text="{Binding ViewModel.ThreadCount, Mode=TwoWay}" Width="40" VerticalAlignment="Center"/>
                 </StackPanel>
 
                 <!-- Estimation -->

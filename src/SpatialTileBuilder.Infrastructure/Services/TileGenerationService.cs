@@ -37,7 +37,6 @@ public class TileGenerationService : ITileGenerationService
         _pauseEvent.Set(); // Ensure started
 
         var stopwatch = Stopwatch.StartNew();
-        long totalTiles = _tileGridService.CalculateTotalTiles(options.Bbox, options.MinZoom, options.MaxZoom);
         long completedCount = 0;
         long failedCount = 0;
 
@@ -51,20 +50,43 @@ public class TileGenerationService : ITileGenerationService
         using ITileWriter writer = options.OutputFormat.ToLower() switch
         {
             "xyz" => new XyzTileWriter(),
+            "mbtiles" => new MBTilesWriter(), // No DI for logger here, simple instantiation
             _ => new XyzTileWriter() // Default
         };
 
         await writer.InitializeAsync(options.OutputPath);
 
-        // Generate Tile List (lazy)
-        var tiles = _tileGridService.GetTilesInBbox(options.Bbox, options.MinZoom); 
-        // Note: Currently GetTilesInBbox only does one zoom level. 
-        // We need to iterate all zoom levels.
-        var allTiles = Enumerable.Empty<TileIndex>();
-        for (int z = options.MinZoom; z <= options.MaxZoom; z++)
+        // Generate Tiles Enumerable
+        IEnumerable<TileIndex> TileSource()
         {
-            allTiles = allTiles.Concat(_tileGridService.GetTilesInBbox(options.Bbox, z));
+            for (int z = options.MinZoom; z <= options.MaxZoom; z++)
+            {
+                IEnumerable<TileIndex> tilesLayer;
+                if (options.RegionShape != null)
+                {
+                    tilesLayer = _tileGridService.GetTilesInPolygon(options.RegionShape, z);
+                }
+                else
+                {
+                    tilesLayer = _tileGridService.GetTilesInBbox(options.Bbox, z);
+                }
+
+                foreach (var t in tilesLayer) yield return t;
+            }
         }
+        
+        long totalTiles = 0;
+        // Calculating total count might be expensive if fully enumerated. 
+        // For progress, we ideally need total. If TileGridService has specialized Count methods, that's best.
+        // For now, let's keep it simple: We might not know total accurately if we stream, OR we double iterate (one for count, one for process).
+        // Since OOM is the concern, double iteration is better than materializing list.
+        // Or we can just estimate or count first.
+        
+        // Calculate Total Count without materializing
+        foreach(var _ in TileSource()) totalTiles++;
+
+        // Update logger with actual count
+        _logger.LogInformation($"Total tiles to generate: {totalTiles}");
 
         var parallelOptions = new ParallelOptions
         {
@@ -74,17 +96,21 @@ public class TileGenerationService : ITileGenerationService
 
         try
         {
-            await Parallel.ForEachAsync(allTiles, parallelOptions, async (tile, ct) =>
+            // Stream processing
+            await Parallel.ForEachAsync(TileSource(), parallelOptions, async (tile, ct) =>
             {
                 _pauseEvent.Wait(CancellationToken.None); // Handle Pause
 
                 try
                 {
                     // Render (Simulated delay in Mock)
-                    byte[] data = _renderer.RenderTile(tile.Z, tile.X, tile.Y);
+                    byte[]? data = _renderer.RenderTile(tile.Z, tile.X, tile.Y);
                     
-                    // Write
-                    await writer.WriteTileAsync(tile.Z, tile.X, tile.Y, data);
+                    if (data != null && data.Length > 0)
+                    {
+                        // Write only if data exists
+                        await writer.WriteTileAsync(tile.Z, tile.X, tile.Y, data);
+                    }
 
                     Interlocked.Increment(ref completedCount);
                 }
@@ -95,11 +121,15 @@ public class TileGenerationService : ITileGenerationService
                 }
 
                 // Progress Report (throttled)
-                if (completedCount % 10 == 0)
+                var current = Interlocked.Read(ref completedCount);
+                if (current % 10 == 0 || current == totalTiles)
                 {
-                    ReportProgress(progress, completedCount, totalTiles, failedCount, stopwatch.Elapsed);
+                    ReportProgress(progress, current, totalTiles, failedCount, stopwatch.Elapsed);
                 }
             });
+            
+            // Final progress report to ensure 100%
+            ReportProgress(progress, totalTiles, totalTiles, failedCount, stopwatch.Elapsed);
         }
         catch (OperationCanceledException)
         {

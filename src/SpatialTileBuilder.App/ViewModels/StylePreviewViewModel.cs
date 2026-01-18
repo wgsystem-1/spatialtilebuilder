@@ -101,6 +101,101 @@ public partial class StylePreviewViewModel : ObservableObject
 
 
     [RelayCommand]
+    private void SaveStyleJson()
+    {
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Filter = "JSON Style Config (*.json)|*.json",
+            Title = "Save Style Configuration",
+            FileName = "style_config.json"
+        };
+        // ... (rest of SaveStyle implementation)
+        if (dialog.ShowDialog() == true)
+        {
+            try
+            {
+                var config = new SpatialTileBuilder.Core.DTOs.StyleConfiguration(
+                    Layers.Select(l => new SpatialTileBuilder.Core.DTOs.LayerStyleConfig(
+                        l.TableInfo.Table,
+                        l.IsVisible,
+                        l.FillColor,
+                        l.Opacity,
+                        l.IsFillVisible,
+                        l.StrokeColor,
+                        l.StrokeWidth,
+                        l.StrokeDashArray,
+                        l.SelectedLabelColumn,
+                        l.LabelSize,
+                        l.LabelColor,
+                        l.LabelHaloRadius,
+                        l.FontName,
+                        l.PointColor,
+                        l.PointSize
+                    )).ToList()
+                );
+
+                var json = System.Text.Json.JsonSerializer.Serialize(config, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(dialog.FileName, json);
+                StatusMessage = "Style saved successfully.";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Failed to save style: {ex.Message}";
+            }
+        }
+    }
+
+    [RelayCommand]
+    private void LoadStyleJson()
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Filter = "JSON Style Config (*.json)|*.json",
+            Title = "Load Style Configuration"
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            try
+            {
+                var json = File.ReadAllText(dialog.FileName);
+                var config = System.Text.Json.JsonSerializer.Deserialize<SpatialTileBuilder.Core.DTOs.StyleConfiguration>(json);
+
+                if (config != null && config.Layers != null)
+                {
+                    foreach (var layerConfig in config.Layers)
+                    {
+                        var targetLayer = Layers.FirstOrDefault(l => l.TableInfo.Table == layerConfig.TableName);
+                        if (targetLayer != null)
+                        {
+                            targetLayer.IsVisible = layerConfig.IsVisible;
+                            targetLayer.FillColor = layerConfig.FillColor;
+                            targetLayer.Opacity = layerConfig.Opacity;
+                            targetLayer.IsFillVisible = layerConfig.IsFillVisible;
+                            targetLayer.StrokeColor = layerConfig.StrokeColor;
+                            targetLayer.StrokeWidth = layerConfig.StrokeWidth;
+                            targetLayer.StrokeDashArray = layerConfig.StrokeDashArray;
+                            targetLayer.SelectedLabelColumn = layerConfig.LabelColumn ?? "";
+                            targetLayer.LabelSize = layerConfig.LabelSize;
+                            targetLayer.LabelColor = layerConfig.LabelColor;
+                            targetLayer.LabelHaloRadius = layerConfig.LabelHaloRadius;
+                            targetLayer.FontName = layerConfig.FontName;
+                            targetLayer.PointColor = layerConfig.PointColor;
+                            targetLayer.PointSize = layerConfig.PointSize;
+                        }
+                    }
+                    StatusMessage = "Style loaded successfully.";
+                    UpdateStyleAndRefreshAsync().ConfigureAwait(false); 
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Failed to load style: {ex.Message}";
+            }
+        }
+    }
+
+    [RelayCommand]
     private async Task LoadStyleAsync()
     {
         if (string.IsNullOrEmpty(StyleFilePath)) return;
@@ -110,21 +205,26 @@ public partial class StylePreviewViewModel : ObservableObject
         {
             // _renderer.LoadStyle(StyleFilePath); // Mock renderer ignores this, but real one would use it.
             // Pass the ORDERED LIST to the renderer with STYLES
-            var styleDtos = Layers.Where(l => l.IsVisible).Select(l => new SpatialTileBuilder.Core.DTOs.LayerStyle(
-                l.TableInfo,
-                l.IsVisible,
-                l.FillColor,
-                l.Opacity,
-                l.IsFillVisible,
-                l.StrokeColor,
-                l.StrokeWidth,
-                l.StrokeDashArray,
-                l.SelectedLabelColumn,
-                l.LabelSize,
-                l.LabelColor,
-                l.LabelHaloRadius,
-                l.PointColor,
-                l.PointSize
+            var styleDtos = Layers.Where(l => l.IsVisible).Select(l => new SpatialTileBuilder.Core.DTOs.LayerConfig(
+                Id: l.TableInfo.Table,
+                Name: l.TableInfo.Table,
+                DataSourceId: "",
+                SourceName: l.TableInfo.Schema + "." + l.TableInfo.Table,
+                IsVisible: l.IsVisible,
+                Opacity: l.Opacity,
+                FillColor: l.FillColor,
+                IsFillVisible: l.IsFillVisible,
+                StrokeColor: l.StrokeColor,
+                StrokeWidth: l.StrokeWidth,
+                StrokeDashArray: l.StrokeDashArray,
+                LabelColumn: l.SelectedLabelColumn,
+                LabelSize: l.LabelSize,
+                LabelColor: l.LabelColor,
+                LabelHaloRadius: l.LabelHaloRadius,
+                FontName: l.FontName,
+                PointColor: l.PointColor,
+                PointSize: l.PointSize,
+                Rules: null
             )).ToList();
 
             _renderer.SetLayers(styleDtos);
@@ -148,8 +248,7 @@ public partial class StylePreviewViewModel : ObservableObject
         IsLoading = true;
         try
         {
-            // Dummy coordinates for now
-            // Use calculated tile coordinates
+            // Use current tile coordinates (set during Initialize or Navigation)
             int z = SelectedZoom;
             int x = _tileX; 
             int y = _tileY;
@@ -173,7 +272,7 @@ public partial class StylePreviewViewModel : ObservableObject
                     bitmap.Freeze(); // For thread safety
                 }
                 PreviewImage = bitmap;
-                StatusMessage = "Preview updated.";
+                StatusMessage = $"Tile: {z}/{x}/{y} updated.";
             }
         }
         catch (Exception ex)
@@ -186,27 +285,79 @@ public partial class StylePreviewViewModel : ObservableObject
         }
     }
 
+    public void Pan(int dx, int dy)
+    {
+        _tileX += dx;
+        _tileY += dy;
+        // Don't await, fire and forget or let UI handle async
+        _ = RefreshPreviewAsync();
+    }
+
+    public void Zoom(int delta)
+    {
+        int newZoom = Math.Clamp(SelectedZoom + delta, 0, 20);
+        if (newZoom == SelectedZoom) return;
+        SelectedZoom = newZoom; // This will trigger OnSelectedZoomChanged logic
+    }
+
+    // Temporary storage for zoom transition
+    private double _lastCenterLon;
+    private double _lastCenterLat;
+
+    partial void OnSelectedZoomChanging(int value)
+    {
+        // Calculate center of current tile at current zoom
+        var (lon, lat) = TileToWorldPos(_tileX + 0.5, _tileY + 0.5, SelectedZoom);
+        _lastCenterLon = lon;
+        _lastCenterLat = lat;
+    }
+
+    partial void OnSelectedZoomChanged(int value)
+    {
+        // Recalculate tile pos for new zoom at the same center
+        var (tx, ty) = WorldToTilePos(_lastCenterLon, _lastCenterLat, value);
+        _tileX = tx;
+        _tileY = ty;
+        
+        // Refresh
+        _ = RefreshPreviewAsync();
+    }
+
+    private (double lon, double lat) TileToWorldPos(double tx, double ty, int zoom)
+    {
+        int n = 1 << zoom; // 2^zoom
+        double lon = (tx / n * 360.0) - 180.0;
+        double latRad = Math.Atan(Math.Sinh(Math.PI * (1 - 2 * ty / n)));
+        double lat = latRad * 180.0 / Math.PI;
+        return (lon, lat);
+    }
+
     public event EventHandler? NextRequested;
 
     [RelayCommand]
     private void NavigateNext()
     {
         // Save styles to state
-        var styles = Layers.Where(l => l.IsVisible).Select(l => new SpatialTileBuilder.Core.DTOs.LayerStyle(
-            l.TableInfo,
-            l.IsVisible,
-            l.FillColor,
-            l.Opacity,
-            l.IsFillVisible,
-            l.StrokeColor,
-            l.StrokeWidth,
-            l.StrokeDashArray,
-            l.SelectedLabelColumn,
-            l.LabelSize,
-            l.LabelColor,
-            l.LabelHaloRadius,
-            l.PointColor,
-            l.PointSize
+        var styles = Layers.Where(l => l.IsVisible).Select(l => new SpatialTileBuilder.Core.DTOs.LayerConfig(
+            Id: Guid.NewGuid().ToString(),
+            Name: l.TableInfo.Table,
+            DataSourceId: "",
+            SourceName: l.TableInfo.Schema + "." + l.TableInfo.Table,
+            IsVisible: l.IsVisible,
+            Opacity: l.Opacity,
+            FillColor: l.FillColor,
+            IsFillVisible: l.IsFillVisible,
+            StrokeColor: l.StrokeColor,
+            StrokeWidth: l.StrokeWidth,
+            StrokeDashArray: l.StrokeDashArray,
+            LabelColumn: l.SelectedLabelColumn,
+            LabelSize: l.LabelSize,
+            LabelColor: l.LabelColor,
+            LabelHaloRadius: l.LabelHaloRadius,
+            FontName: l.FontName,
+            PointColor: l.PointColor,
+            PointSize: l.PointSize,
+            Rules: null
         )).ToList();
         
         _stateService.StyledLayers = styles;
@@ -328,9 +479,12 @@ public partial class StylePreviewViewModel : ObservableObject
             sb.AppendLine($"      <MarkersSymbolizer fill=\"{layer.PointColor}\" width=\"{layer.PointSize}\" />");
 
             // Label
+            // Label
             if (!string.IsNullOrEmpty(layer.SelectedLabelColumn))
             {
-                 sb.AppendLine($"      <TextSymbolizer face-name=\"DejaVu Sans Book\" size=\"{layer.LabelSize}\" fill=\"{layer.LabelColor}\" halo-radius=\"{layer.LabelHaloRadius}\" placement=\"point\">[{layer.SelectedLabelColumn}]</TextSymbolizer>");
+                 // Use selected font or default to DejaVu
+                 string font = string.IsNullOrEmpty(layer.FontName) ? "DejaVu Sans Book" : layer.FontName;
+                 sb.AppendLine($"      <TextSymbolizer face-name=\"{font}\" size=\"{layer.LabelSize}\" fill=\"{layer.LabelColor}\" halo-radius=\"{layer.LabelHaloRadius}\" placement=\"point\">[{layer.SelectedLabelColumn}]</TextSymbolizer>");
             }
 
             sb.AppendLine("    </Rule>");

@@ -11,7 +11,8 @@ public record GenerationOptions(
     BoundingBox Bbox,
     bool Overwrite,
     int ThreadCount,
-    List<LayerStyle> Layers
+    List<LayerConfig> Layers,
+    NetTopologySuite.Geometries.Geometry? RegionShape = null
 );
 
 public record GenerationProgress(

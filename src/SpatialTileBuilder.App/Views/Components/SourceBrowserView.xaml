@@ -1,0 +1,68 @@
+<UserControl x:Class="SpatialTileBuilder.App.Views.Components.SourceBrowserView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:SpatialTileBuilder.App.Views.Components"
+             xmlns:vm="clr-namespace:SpatialTileBuilder.App.ViewModels"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="300">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <ToolBarTray Grid.Row="0">
+            <ToolBar Style="{DynamicResource MaterialDesignToolBar}" ClipToBounds="False">
+                <Button ToolTip="Add Data Source" Command="{Binding AddSourceCommand}">
+                    <materialDesign:PackIcon Kind="DatabasePlus"/>
+                </Button>
+                <Button ToolTip="Remove Source" Command="{Binding RemoveSourceCommand}">
+                    <materialDesign:PackIcon Kind="DatabaseRemove"/>
+                </Button>
+                <Separator/>
+                <Button ToolTip="Add Layer to Map" Command="{Binding AddLayerToMapCommand}">
+                    <materialDesign:PackIcon Kind="LayersPlus"/>
+                </Button>
+                <Button ToolTip="Refresh" Command="{Binding RefreshSourcesCommand, FallbackValue={x:Null}}">
+                    <materialDesign:PackIcon Kind="Refresh"/>
+                </Button>
+            </ToolBar>
+        </ToolBarTray>
+
+        <TreeView Grid.Row="1" ItemsSource="{Binding Sources}"  >
+            <TreeView.Resources>
+                <HierarchicalDataTemplate DataType="{x:Type vm:DataSourceItemViewModel}" ItemsSource="{Binding Tables}">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="{Binding IconKind}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </HierarchicalDataTemplate>
+                
+                <DataTemplate DataType="{x:Type vm:TableItemViewModel}">
+                    <StackPanel Orientation="Horizontal" ToolTip="Double click to add">
+                        <!-- Double click behavior can be added via Interaction triggers -->
+                        <StackPanel.InputBindings>
+                            <MouseBinding MouseAction="LeftDoubleClick" 
+                                          Command="{Binding DataContext.AddLayerToMapCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                        </StackPanel.InputBindings>
+                        <materialDesign:PackIcon Kind="Table" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding TableName}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </DataTemplate>
+            </TreeView.Resources>
+            
+            <TreeView.ItemContainerStyle>
+                <Style TargetType="TreeViewItem" BasedOn="{StaticResource MaterialDesignTreeViewItem}">
+                    <!-- Bind SelectedItem manually if needed, or use Behavior. 
+                         For MVP, we use the TreeView.SelectedItem via code-behind or behavior if strictly MVVM.
+                         WPF TreeView doesn't bind SelectedItem easily. 
+                         We will use a Behavior or just code-behind to push to ViewModel. -->
+                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay, FallbackValue=False}"/>
+                </Style>
+            </TreeView.ItemContainerStyle> 
+        </TreeView>
+    </Grid>
+</UserControl>

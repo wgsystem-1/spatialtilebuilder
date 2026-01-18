@@ -51,6 +51,11 @@ public partial class StyleLayerViewModel : ObservableObject
     [ObservableProperty]
     private double _labelHaloRadius = 0.0; // 0 = no halo
 
+    [ObservableProperty]
+    private string _fontName = "Arial"; // Default
+
+    public System.Collections.Generic.List<string> AvailableFonts { get; } = SkiaSharp.SKFontManager.Default.GetFontFamilies().OrderBy(x => x).ToList();
+
     // Point
     [ObservableProperty]
     private string _pointColor = "#FF0000";

@@ -132,6 +132,28 @@ public partial class ConnectionWizardViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task DeleteConnectionAsync()
+    {
+        if (SelectedConnection == null) return;
+
+        try
+        {
+            await _repository.DeleteAsync(SelectedConnection.Id);
+            StatusMessage = "연결 정보가 삭제되었습니다.";
+            
+            // Refresh list
+            await LoadSavedConnectionsAsync();
+            SelectedConnection = null;
+            
+            // Clear inputs? Maybe optional. Let's keep them so user can easily re-save if accidental.
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"삭제 실패: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
     private async Task SaveAsync()
     {
         if (!ValidateInputs()) return;
@@ -141,6 +163,11 @@ public partial class ConnectionWizardViewModel : ObservableObject
         {
             ConnectionName = $"{Host}_{Database}";
         }
+
+        // Test connection is optional for pure saving, but user workflow usually implies testing first.
+        // Let's NOT force test if user just wants to update metadata, but for safety lets keep it.
+        // Actually, user asked to "Modify", so we should allow saving changes.
+        // Existing logic forces test.
 
         if (!TestSuccess)
         {
@@ -175,7 +202,7 @@ public partial class ConnectionWizardViewModel : ObservableObject
                  }
                  else
                  {
-                     // Shoud not happen if ExistsAsync is true
+                     // Should not happen if ExistsAsync is true
                      await _repository.AddAsync(entity);
                      StatusMessage = "연결이 저장되었습니다.";
                  }
@@ -185,13 +212,13 @@ public partial class ConnectionWizardViewModel : ObservableObject
                 await _repository.AddAsync(entity);
                 StatusMessage = "연결이 저장되었습니다.";
             }
+            
+            // Reload list to reflect changes
+            await LoadSavedConnectionsAsync();
 
             // Set the active connection for the application
             _connectionService.SetConnectionInfo(GetConnectionInfo());
             IsError = false;
-            
-            // Navigate logic is handled manually by user for now or auto via View
-            // StatusMessage will prompt user they can proceed
         }
         catch (Exception ex)
         {

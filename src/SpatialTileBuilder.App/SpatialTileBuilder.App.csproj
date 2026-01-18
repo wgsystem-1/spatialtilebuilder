@@ -22,6 +22,7 @@
     <PackageReference Include="Serilog.Extensions.Logging" Version="9.0.0" />
     <PackageReference Include="Serilog.Sinks.Debug" Version="3.0.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
+    <PackageReference Include="SkiaSharp.Views.WPF" Version="2.88.9" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="9.0.1" />
   </ItemGroup>
 

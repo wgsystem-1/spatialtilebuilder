@@ -1,0 +1,73 @@
+<UserControl x:Class="SpatialTileBuilder.App.Views.Components.ExportView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             mc:Ignorable="d" 
+             d:DesignHeight="400" d:DesignWidth="500">
+    <materialDesign:Card Background="{DynamicResource MaterialDesignPaper}" Width="500" Padding="20">
+        <StackPanel>
+            <TextBlock Text="Export Tiles (MBTiles)" Style="{StaticResource MaterialDesignHeadline5TextBlock}" Margin="0,0,0,20"/>
+
+            <!-- Configuration Form -->
+            <Grid Visibility="{Binding IsGenerating, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=Inverse}">
+                <StackPanel>
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox Text="{Binding OutputFilePath}" materialDesign:HintAssist.Hint="Output File (.mbtiles)" VerticalAlignment="Center" IsReadOnly="True"/>
+                        <Button Grid.Column="1" Content="..." Command="{Binding BrowseOutputCommand}" Style="{StaticResource MaterialDesignOutlinedButton}" Margin="10,0,0,0"/>
+                    </Grid>
+
+                    <DockPanel Margin="0,0,0,15">
+                        <TextBlock Text="Zoom Levels:" VerticalAlignment="Center" Width="100"/>
+                        <TextBox Text="{Binding MinZoom}" Width="50" materialDesign:HintAssist.Hint="Min" Margin="0,0,10,0"/>
+                        <TextBlock Text="-" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <TextBox Text="{Binding MaxZoom}" Width="50" materialDesign:HintAssist.Hint="Max"/>
+                    </DockPanel>
+
+                    <GroupBox Header="Bounds (WGS84)" Margin="0,0,0,15">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            
+                            <TextBox Grid.Row="0" Grid.Column="0" Text="{Binding MinX}" materialDesign:HintAssist.Hint="Min X (West)" Margin="5"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding MaxX}" materialDesign:HintAssist.Hint="Max X (East)" Margin="5"/>
+                            <TextBox Grid.Row="1" Grid.Column="0" Text="{Binding MinY}" materialDesign:HintAssist.Hint="Min Y (South)" Margin="5"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding MaxY}" materialDesign:HintAssist.Hint="Max Y (North)" Margin="5"/>
+                        </Grid>
+                    </GroupBox>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                        <Button Content="Close" Command="{Binding DataContext.CloseExportCommand, RelativeSource={RelativeSource AncestorType=Window}}" Style="{StaticResource MaterialDesignFlatButton}" Margin="0,0,10,0"/>
+                         <!-- Note: CloseExportCommand needs to be bound from MainWorkspace. 
+                              If this is embedded, we rely on parent VM or external handling. 
+                              Let's assume the parent view binds a Close command or we just hide it. -->
+                        <Button Content="Generate" Command="{Binding StartExportCommand}" Style="{StaticResource MaterialDesignRaisedButton}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+
+            <!-- Progress View -->
+            <Grid Visibility="{Binding IsGenerating, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <StackPanel>
+                    <TextBlock Text="{Binding StatusText}" Style="{StaticResource MaterialDesignBody1TextBlock}" Margin="0,0,0,10"/>
+                    <ProgressBar Value="{Binding ProgressValue}" Height="20" Margin="0,0,0,10"/>
+                    <TextBlock Text="{Binding StatsText}" Style="{StaticResource MaterialDesignCaptionTextBlock}" Margin="0,0,0,20"/>
+                    
+                    <Button Content="Cancel" Command="{Binding CancelCommand}" Style="{StaticResource MaterialDesignOutlinedButton}" HorizontalAlignment="Right"/>
+                </StackPanel>
+            </Grid>
+
+        </StackPanel>
+    </materialDesign:Card>
+</UserControl>
